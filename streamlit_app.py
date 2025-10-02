@@ -9,8 +9,8 @@ import plotly.express as px
 st.set_page_config(page_title="Hospitales del Perú — Geoanálisis", layout="wide")
 
 # --------- Fuente (Google Sheets) ---------
-SHEET_ID = "10vy5pyNvLUAb2pCJLye7gaOPHOIhjdmzUTKdiUbF5oI"
-GID = "0"  # <-- cambia por el gid real de la pestaña que usarás
+SHEET_ID = "1xOkeqlTCWVifWmfcVlvo2geTjDvoTAS8DIvkaCW9u64"
+GID = "287328050"
 CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={GID}"
 
 @st.cache_data(show_spinner=True)
