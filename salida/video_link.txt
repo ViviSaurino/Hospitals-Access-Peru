@@ -3,3 +3,5 @@
 Estado: pendiente
 Visibilidad recomendada en YouTube: No listado
 Contenido del video: explicación breve del repo, estructura, cómo correr, resultados.
+URL app (Streamlit): https://hospitals-access-peru-group-4-course-python.streamlit.app/
+Estado: publicado
