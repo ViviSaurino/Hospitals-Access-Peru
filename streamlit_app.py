@@ -215,7 +215,7 @@ with tab2:
 
 
 with tab3:
-    st.header(Tab 3: Dynamic Maps")
+    st.header("Tab 3: Dynamic Maps")
 
     # -------------------------
     # 1. Cargar datos
