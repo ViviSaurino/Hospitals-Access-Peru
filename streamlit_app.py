@@ -165,7 +165,7 @@ st.dataframe(df_f.head(50), use_container_width=True)
 
 
 with tab2:
-    st.header("🗺️ Tab 2: Static Maps & Department Analysis
+    st.header("🗺️ Tab 2: Static Maps & Department Analysis")
 
 
     # -------- Map 1: Total hospitals per district --------
