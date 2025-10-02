@@ -39,6 +39,10 @@ Crear un panel reproducible en Python/Streamlit que lea datos públicos desde Go
 ├─ src/ # utilidades/código auxiliar (placeholder)
 ├─ codigo/
 │ └─ .keep # carpeta solicitada por la consigna
+├─ data/                      
+│  │  ├─ ipress_raw.csv
+│  │  ├─ distritos.zip             # shapefile de distritos 
+│  │  └─ centros_poblados.zip 
 ├─ salida/
 │ ├─ video_link.txt # pegar aquí el enlace YouTube (no listado)
 │ └─ .keep
