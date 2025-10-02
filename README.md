@@ -54,13 +54,14 @@ Crear un panel reproducible en Python/Streamlit que lea datos públicos desde Go
 ## Fuente de datos
 La app lee una hoja de Google Sheets pública mediante **CSV export**.
 
-- **Sheet ID:** `10vy5pyNvLUAb2pCJLye7gaOPHOIhjdmzUTKdiUbF5oI`
-- **GID (pestaña):** configurable en `streamlit_app.py` (por defecto `"0"`)
+- **Sheet ID:** 1xOkeqlTCWVifWmfcVlvo2geTjDvoTAS8DIvkaCW9u64`
+- **GID (pestaña):** 287328050
 
 **Formato de URL CSV:**
 
 ```
-https://docs.google.com/spreadsheets/d/<SHEET_ID>/export?format=csv&gid=<GID>
+https://docs.google.com/spreadsheets/d/<SHEET_ID>/export?format=csv&gid=<GID>](https://docs.google.com/spreadsheets/d/1xOkeqlTCWVifWmfcVlvo2geTjDvoTAS8DIvkaCW9u64/export?format=csv&gid=287328050
+
 ```
 
 **Permisos de la hoja**  
