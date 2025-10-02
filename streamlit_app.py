@@ -13,11 +13,11 @@ import matplotlib.pyplot as plt
 # ============================
 st.set_page_config(page_title="Hospitales del Perú — Geoanálisis", layout="wide")
 # Crear tabs
-tab1, tab2, tab3 = st.tabs(["🗂️ Tab 1: Data Description", "🗺️ Tab 2: Static Maps & Department Analysis", "🌍 Tab 3: Dynamic Maps"])
+tab1, tab2, tab3 = st.tabs(["Tab 1: Data Description", "Tab 2: Static Maps & Department Analysis", "Tab 3: Dynamic Maps"])
 
 
 with tab1:
-    st.header("🗂️ Tab 1: Data Description")
+    st.header("Tab 1: Data Description")
 
 # --------- Fuente (Google Sheets) ---------
 SHEET_ID = "1xOkeqlTCWVifWmfcVlvo2geTjDvoTAS8DIvkaCW9u64"
@@ -165,7 +165,7 @@ st.dataframe(df_f.head(50), use_container_width=True)
 
 
 with tab2:
-    st.header("🗺️ Tab 2: Static Maps & Department Analysis")
+    st.header("Tab 2: Static Maps & Department Analysis")
 
 
     # -------- Map 1: Total hospitals per district --------
@@ -215,7 +215,7 @@ with tab2:
 
 
 with tab3:
-    st.header(🌍 Tab 3: Dynamic Maps")
+    st.header(Tab 3: Dynamic Maps")
 
     # -------------------------
     # 1. Cargar datos
