@@ -1,0 +1,5 @@
+[PEGA AQUÍ EL ENLACE DE YOUTUBE CUANDO ESTÉ LISTO]
+
+Estado: pendiente
+Visibilidad recomendada en YouTube: No listado
+Contenido del video: explicación breve del repo, estructura, cómo correr, resultados.
