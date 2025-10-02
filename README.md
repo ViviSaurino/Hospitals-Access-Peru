@@ -7,7 +7,7 @@ Geoanálisis de hospitales en Perú con Streamlit.
 ---
 
 ## Demo (app)
-- **URL pública de Streamlit:** [_pendiente_.](https://hospitals-access-peru-group-4-course-python.streamlit.app/)  
+- **URL pública de Streamlit:** https://hospitals-access-peru-group-4-course-python.streamlit.app/
 
 ---
 
