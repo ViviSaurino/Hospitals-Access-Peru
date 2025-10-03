@@ -1,10 +1,21 @@
 import io
+import os
+import json
 import requests
 import pandas as pd
-import geopandas as gpd
+
+# ---- GeoPandas opcional (no romper en Streamlit Cloud) ----
+try:
+    import geopandas as gpd
+    GEOPANDAS_OK = True
+except Exception:
+    gpd = None
+    GEOPANDAS_OK = False
+
 import streamlit as st
 from streamlit_folium import st_folium
 import folium
+from folium.plugins import MarkerCluster  # lo usabas en Tab 3
 import plotly.express as px
 import matplotlib.pyplot as plt
 
@@ -14,7 +25,6 @@ import matplotlib.pyplot as plt
 st.set_page_config(page_title="Hospitales del Perú — Geoanálisis", layout="wide")
 # Crear tabs
 tab1, tab2, tab3 = st.tabs(["Tab 1: Data Description", "Tab 2: Static Maps & Department Analysis", "Tab 3: Dynamic Maps"])
-
 
 with tab1:
     st.header("Tab 1: Data Description")
@@ -163,57 +173,65 @@ st.divider()
 st.subheader("Vista previa de datos")
 st.dataframe(df_f.head(50), use_container_width=True)
 
-
+# ============================
+# TAB 2
+# ============================
 with tab2:
     st.header("Tab 2: Static Maps & Department Analysis")
 
+    # Si las variables requeridas no existen o no hay GeoPandas, evitamos errores
+    if not GEOPANDAS_OK or not all(v in globals() for v in ["gdf_dist_cnt", "dep_tbl", "dep_text_col"]):
+        st.info("Sección en construcción o GeoPandas no disponible. "
+                "Para habilitar estos mapas estáticos, defina gdf_dist_cnt/dep_tbl/dep_text_col "
+                "y ejecute en un entorno con GeoPandas.")
+    else:
+        # -------- Map 1: Total hospitals per district --------
+        fig = plt.figure(figsize=(8, 9))
+        ax = plt.gca()
+        gdf_dist_cnt.plot(column="hospitales", legend=True, ax=ax)
+        ax.set_title("Map 1 — Hospitals per District (Total)")
+        ax.set_axis_off()
+        plt.tight_layout()
+        st.pyplot(fig)
 
-    # -------- Map 1: Total hospitals per district --------
-    fig = plt.figure(figsize=(8, 9))
-    ax = plt.gca()
-    gdf_dist_cnt.plot(column="hospitales", legend=True, ax=ax)
-    ax.set_title("Map 1 — Hospitals per District (Total)")
-    ax.set_axis_off()
-    plt.tight_layout()
-    st.pyplot(fig)
+        # -------- Map 2: Highlight districts with zero hospitals --------
+        gdf_zero = gdf_dist_cnt[gdf_dist_cnt["hospitales"] == 0]
+        fig = plt.figure(figsize=(8, 9))
+        ax = plt.gca()
+        gdf_dist_cnt.plot(ax=ax, alpha=0.12)   # base layer faint
+        gdf_zero.plot(ax=ax, linewidth=1.0)    # overlay zeros
+        ax.set_title("Map 2 — Districts with ZERO Hospitals (highlighted)")
+        ax.set_axis_off()
+        plt.tight_layout()
+        st.pyplot(fig)
 
-    # -------- Map 2: Highlight districts with zero hospitals --------
-    gdf_zero = gdf_dist_cnt[gdf_dist_cnt["hospitales"] == 0]
-    fig = plt.figure(figsize=(8, 9))
-    ax = plt.gca()
-    gdf_dist_cnt.plot(ax=ax, alpha=0.12)   # base layer faint
-    gdf_zero.plot(ax=ax, linewidth=1.0)    # overlay zeros
-    ax.set_title("Map 2 — Districts with ZERO Hospitals (highlighted)")
-    ax.set_axis_off()
-    plt.tight_layout()
-    st.pyplot(fig)
+        # -------- Map 3: Top 10 districts with highest number of hospitals --------
+        top10 = gdf_dist_cnt.sort_values("hospitales", ascending=False).head(10)
+        fig = plt.figure(figsize=(8, 9))
+        ax = plt.gca()
+        gdf_dist_cnt.plot(ax=ax, alpha=0.12)   # base layer faint
+        top10.plot(ax=ax, linewidth=1.2)       # overlay top10
+        ax.set_title("Map 3 — Top 10 Districts by Number of Hospitals")
+        ax.set_axis_off()
+        plt.tight_layout()
+        st.pyplot(fig)
 
-    # -------- Map 3: Top 10 districts with highest number of hospitals --------
-    top10 = gdf_dist_cnt.sort_values("hospitales", ascending=False).head(10)
-    fig = plt.figure(figsize=(8, 9))
-    ax = plt.gca()
-    gdf_dist_cnt.plot(ax=ax, alpha=0.12)   # base layer faint
-    top10.plot(ax=ax, linewidth=1.2)       # overlay top10
-    ax.set_title("Map 3 — Top 10 Districts by Number of Hospitals")
-    ax.set_axis_off()
-    plt.tight_layout()
-    st.pyplot(fig)
+        # ==============================
+        # 9.2 Department bar chart (Top 10)
+        # ==============================
+        fig = plt.figure(figsize=(7, 6))
+        ax = plt.gca()
+        (dep_tbl.head(10).sort_values("hospitales", ascending=True)
+         .plot(kind="barh", x=dep_text_col, y="hospitales", ax=ax))
+        ax.set_title("Hospitals by Department — Top 10 (preview)")
+        ax.set_xlabel("Hospitals")
+        ax.set_ylabel("Department")
+        plt.tight_layout()
+        st.pyplot(fig)
 
-    
-    # ==============================
-    # 9.2 Department bar chart (Top 10)
-    # ==============================
-    fig = plt.figure(figsize=(7, 6))
-    ax = plt.gca()
-    (dep_tbl.head(10).sort_values("hospitales", ascending=True)
-     .plot(kind="barh", x=dep_text_col, y="hospitales", ax=ax))
-    ax.set_title("Hospitals by Department — Top 10 (preview)")
-    ax.set_xlabel("Hospitals")
-    ax.set_ylabel("Department")
-    plt.tight_layout()
-    st.pyplot(fig)
-
-
+# ============================
+# TAB 3
+# ============================
 with tab3:
     st.header("Tab 3: Dynamic Maps")
 
@@ -227,17 +245,37 @@ with tab3:
     hospitals_df = pd.read_csv(url)
 
     # Distritos desde un GeoJSON
-    districts = gpd.read_file("districts.geojson")
+    districts_gdf = None
+    districts_gjson = None
+    geojson_path = "districts.geojson"
+
+    if GEOPANDAS_OK and os.path.exists(geojson_path):
+        try:
+            districts_gdf = gpd.read_file(geojson_path)
+        except Exception as _:
+            districts_gdf = None
+
+    if districts_gdf is None:
+        # Fallback sin GeoPandas: cargar como JSON (si el archivo existe)
+        if os.path.exists(geojson_path):
+            with open(geojson_path, "r", encoding="utf-8") as f:
+                districts_gjson = json.load(f)
+        else:
+            st.warning("No se encuentra 'districts.geojson' en el repositorio. "
+                       "Sube ese archivo o usa una URL pública para el GeoJSON.")
 
     # -------------------------
     # 2. Preparar data para choropleth
     # -------------------------
     hospitals_per_district = hospitals_df.groupby("DISTRITO").size().reset_index(name="count")
-    districts = districts.rename({'NOMBDIST': 'DISTRITO'}, axis=1)
-    districts = districts.rename({'NOMBDEP': 'DEPARTAMENTO'}, axis=1)
 
-    # Hacer merge con conteo de hospitales
-    districts = districts.merge(hospitals_per_district, on="DISTRITO", how="left")
+    # Si tenemos GeoPandas, renombramos columnas como pedías
+    if districts_gdf is not None:
+        districts = districts_gdf.rename({'NOMBDIST': 'DISTRITO'}, axis=1)
+        districts = districts.rename({'NOMBDEP': 'DEPARTAMENTO'}, axis=1)
+        districts = districts.merge(hospitals_per_district, on="DISTRITO", how="left")
+    else:
+        districts = None  # usaremos directamente el GeoJSON en Choropleth
 
     # -------------------------
     # 3. Crear mapa base
@@ -253,93 +291,106 @@ with tab3:
     )
 
     # Choropleth
-    folium.Choropleth(
-        geo_data=districts.to_json(),
-        data=districts,
-        columns=["DISTRITO", "count"],
-        key_on="feature.properties.DISTRITO",
-        fill_color="YlOrRd",
-        fill_opacity=0.7,
-        line_opacity=0.2,
-        legend_name="Número de hospitales por distrito"
-    ).add_to(m)
+    if districts is not None:
+        # Con GeoPandas
+        folium.Choropleth(
+            geo_data=districts.to_json(),
+            data=districts,
+            columns=["DISTRITO", "count"],
+            key_on="feature.properties.DISTRITO",
+            fill_color="YlOrRd",
+            fill_opacity=0.7,
+            line_opacity=0.2,
+            legend_name="Número de hospitales por distrito"
+        ).add_to(m)
+    elif districts_gjson is not None:
+        # Sin GeoPandas: usar el GeoJSON directamente y hospitals_per_district
+        # Asumimos que el nombre del distrito está en NOMBDIST
+        # Creamos un DataFrame con la misma clave que el GeoJSON
+        df_choro = hospitals_per_district.rename(columns={"DISTRITO": "NOMBDIST"})
+        folium.Choropleth(
+            geo_data=districts_gjson,
+            data=df_choro,
+            columns=["NOMBDIST", "count"],
+            key_on="feature.properties.NOMBDIST",
+            fill_color="YlOrRd",
+            fill_opacity=0.7,
+            line_opacity=0.2,
+            legend_name="Número de hospitales por distrito"
+        ).add_to(m)
+    else:
+        st.info("Sin capa de distritos: sube 'districts.geojson' al repo para ver el choropleth.")
 
     # Clúster de hospitales
     marker_cluster = MarkerCluster().add_to(m)
     for _, row in hospitals_df.iterrows():
-        folium.Marker(
-            location=[row["LATITUD"], row["LONGITUD"]],
-            popup=f"Hospital en distrito: {row['DISTRITO']}"
-        ).add_to(marker_cluster)
+        if pd.notna(row.get("LATITUD")) and pd.notna(row.get("LONGITUD")):
+            folium.Marker(
+                location=[row["LATITUD"], row["LONGITUD"]],
+                popup=f"Hospital en distrito: {row.get('DISTRITO', 's/d')}"
+            ).add_to(marker_cluster)
 
     # -------------------------
     # 4. Mostrar mapa en Streamlit
     # -------------------------
     st_folium(m, width=1000, height=600)
 
-   # -------------------------
+    # -------------------------
     # TASK 2: Proximidad Lima & Loreto
     # -------------------------
-    # Crear geometría hospitales
-    hospitals_gdf = gpd.GeoDataFrame(
-        hospitals_df,
-        geometry=gpd.points_from_xy(hospitals_df.LONGITUD, hospitals_df.LATITUD),
-        crs="EPSG:4326"
-    )
+    if GEOPANDAS_OK and (districts is not None):
+        # Crear geometría hospitales
+        hospitals_gdf = gpd.GeoDataFrame(
+            hospitals_df,
+            geometry=gpd.points_from_xy(hospitals_df.LONGITUD, hospitals_df.LATITUD),
+            crs="EPSG:4326"
+        )
 
-    # Reproyectar a métrico
-    hospitals_gdf = hospitals_gdf.to_crs(epsg=3857)
-    districts = districts.to_crs(epsg=3857)
+        # Reproyectar a métrico
+        hospitals_gdf = hospitals_gdf.to_crs(epsg=3857)
+        districts = districts.to_crs(epsg=3857)
 
-    # Buffer de 10km y conteo
-    districts["buffer_10km"] = districts.buffer(10000)
-    hospital_counts = []
-    for idx, row in districts.iterrows():
-        buffer = row["buffer_10km"]
-        count = hospitals_gdf.within(buffer).sum()
-        hospital_counts.append(count)
-    districts["hospital_density"] = hospital_counts
+        # Buffer de 10km y conteo
+        districts["buffer_10km"] = districts.buffer(10000)
+        hospital_counts = []
+        for idx, row in districts.iterrows():
+            buffer = row["buffer_10km"]
+            count = hospitals_gdf.within(buffer).sum()
+            hospital_counts.append(count)
+        districts["hospital_density"] = hospital_counts
 
-    # Mapa de proximidad
-    m2 = folium.Map(location=[lat_hospital, long_hospital],
-                   tiles="Cartodb Positron",
-                   zoom_start=5,
-                   control_scale=True)
+        # Mapa de proximidad
+        m2 = folium.Map(location=[lat_hospital, long_hospital],
+                        tiles="Cartodb Positron",
+                        zoom_start=5,
+                        control_scale=True)
 
-    for dep in ["LIMA", "LORETO"]:
-        sub = districts[districts["DEPARTAMENTO"] == dep]
-        if not sub.empty:
-            # Mayor densidad (verde)
-            high = sub.loc[sub["hospital_density"].idxmax()]
-            folium.Circle(
-                location=[high.geometry.centroid.y, high.geometry.centroid.x],
-                radius=10000,
-                color="green",
-                fill=True,
-                popup=f"{dep} - Alta densidad: {high['hospital_density']}"
-            ).add_to(m2)
+        for dep in ["LIMA", "LORETO"]:
+            sub = districts[districts["DEPARTAMENTO"] == dep]
+            if not sub.empty:
+                # Mayor densidad (verde)
+                high = sub.loc[sub["hospital_density"].idxmax()]
+                folium.Circle(
+                    location=[high.geometry.centroid.y, high.geometry.centroid.x],
+                    radius=10000,
+                    color="green",
+                    fill=True,
+                    popup=f"{dep} - Alta densidad: {high['hospital_density']}"
+                ).add_to(m2)
 
-            # Menor densidad (rojo)
-            low = sub.loc[sub["hospital_density"].idxmin()]
-            folium.Circle(
-                location=[low.geometry.centroid.y, low.geometry.centroid.x],
-                radius=10000,
-                color="red",
-                fill=True,
-                popup=f"{dep} - Baja densidad: {low['hospital_density']}"
-            ).add_to(m2)
+                # Menor densidad (rojo)
+                low = sub.loc[sub["hospital_density"].idxmin()]
+                folium.Circle(
+                    location=[low.geometry.centroid.y, low.geometry.centroid.x],
+                    radius=10000,
+                    color="red",
+                    fill=True,
+                    popup=f"{dep} - Baja densidad: {low['hospital_density']}"
+                ).add_to(m2)
 
-    st.subheader("Task 2: Proximidad Lima & Loreto")
-    st_folium(m2, width=1000, height=600)
-
-    # -------------------------
-    # Análisis corto
-    # -------------------------
-    st.markdown("### Análisis corto")
-    st.markdown("""
-    **Lima:** La concentración urbana de hospitales evidencia una centralización de los servicios hospitalarios.  
-    En un radio de 10 km, la accesibilidad es alta y muestra mayor facilidad para acceder a estos servicios en comparación con otras regiones.  
-
-    **Loreto:** Se observa baja densidad hospitalaria dentro de radios de 10 km, lo que refleja una amplia brecha en accesibilidad.  
-    Esto se relaciona con la dispersión geográfica de la Amazonía y las dificultades que representa el transporte fluvial y aéreo.
-    """)
+        st.subheader("Task 2: Proximidad Lima & Loreto")
+        st_folium(m2, width=1000, height=600)
+    else:
+        st.subheader("Task 2: Proximidad Lima & Loreto")
+        st.info("Esta tarea requiere GeoPandas (buffers y análisis espacial). "
+                "En Streamlit Cloud puedes dejarla deshabilitada o precomputar resultados.")
