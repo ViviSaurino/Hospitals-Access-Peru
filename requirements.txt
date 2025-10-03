@@ -5,3 +5,4 @@ folium==0.17.0
 streamlit-folium==0.21.0
 plotly==5.22.0
 requests==2.32.3
+matplotlib==3.8.4
