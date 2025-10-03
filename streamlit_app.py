@@ -64,7 +64,8 @@ cand_lat  = [c for c in df.columns if 'lat' in c]
 cand_lon  = [c for c in df.columns if ('lon' in c) or ('lng' in c) or ('long' in c)]
 cand_dep  = [c for c in ['departamento', 'region', 'región', 'ambito', 'ambito_', 'dep'] if c in df.columns]
 cand_tipo = [c for c in ['tipo', 'categoria', 'nivel', 'clasificacion', 'clasificación'] if c in df.columns]
-cand_name = [c for c in ['establecimiento', 'hospital', 'nombre', 'name'] if c in df.columns]
+# 🔧 AJUSTE PEDIDO: coincidencias parciales para detectar nombre_del_establecimiento, etc.
+cand_name = [c for c in df.columns if any(k in c for k in ['establecimiento', 'hospital', 'nombre', 'name'])]
 
 st.sidebar.subheader("Asignar columnas (opcional)")
 pick_lat  = st.sidebar.selectbox("Latitud", ["(auto)"] + list(df.columns), index=0)
